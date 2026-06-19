@@ -50,4 +50,4 @@ def SatPoints(hours,steps,rogvog):
     points = np.column_stack((x,y,z))
     velocity = np.column_stack((vx,vy,vz))
 
-    return points,velocity
+    return points,velocity,t

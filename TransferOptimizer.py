@@ -47,21 +47,58 @@ print("Required deltaV2 = %.3f [m/s]" %abs((v02-vRef)*1000))
 
 #Propagation
 Orbits = 69
-Positionref,vref = SatPoints(P1*Orbits,10000,y0ref) #Reference satellite
+steps = 10000
 
-PositionSat1,vsat1 = SatPoints(P1*Orbits,10000,y01) #Smaller orbit than reference
-PositionSat2,vsat2 = SatPoints(P1*Orbits,10000,y01) #Smaller orbit than reference
+Positionref,vref,tref    = SatPoints(P1*Orbits,steps,y0ref) #Reference satellite
+PositionSat1,vsat1,tsat1 = SatPoints(P1*Orbits,steps,y01) #Smaller orbit than reference
+PositionSat2,vsat2,tsat2 = SatPoints(P1*Orbits,steps,y01) #Smaller orbit than reference
+PositionSat3,vsat3,tsat3 = SatPoints(P2*Orbits,steps,y02) #Bigger orbit than reference
+PositionSat4,vsat4,tsat4 = SatPoints(P2*Orbits,steps,y02) #Bigger orbit than reference
 
-PositionSat3,vsat3 = SatPoints(P2*Orbits,10000,y02) #Bigger orbit than reference
-PositionSat4,vsat4 = SatPoints(P2*Orbits,10000,y02) #Bigger orbit than reference
 
+Positionref1,vref1,tref1    = SatPoints(P1*Orbits,steps,np.concatenate((Positionref[-1],vref[-1])))
+PositionSat11,vsat11,tsat11 = SatPoints(P1*Orbits,steps,np.concatenate((PositionSat1[-1],y0ref[3:6])))
+PositionSat21,vsat21,tsat21 = SatPoints(P1*Orbits,steps,np.concatenate((PositionSat2[-1],vsat2[-1])))
+PositionSat31,vsat31,tsat31 = SatPoints(P1*Orbits*2-P2*Orbits,steps,np.concatenate((PositionSat3[-1],y0ref[3:6])))
+PositionSat41,vsat41,tsat41 = SatPoints(P1*Orbits*2-P2*Orbits,steps,np.concatenate((PositionSat4[-1],vsat4[-1])))
 
-Positionref,vref   = SatPoints(P1*Orbits,10000,np.concatenate((Positionref[-1],vref[-1])))
-PositionSat1,vsat1 = SatPoints(P1*Orbits,10000,np.concatenate((PositionSat1[-1],y0ref[3:6])))
-PositionSat2,vsat2 = SatPoints(P1*Orbits,10000,np.concatenate((PositionSat2[-1],vsat2[-1])))
-PositionSat3,vsat3 = SatPoints(P1*Orbits*2-P2*Orbits,10000,np.concatenate((PositionSat3[-1],y0ref[3:6])))
-PositionSat4,vsat4 = SatPoints(P1*Orbits*2-P2*Orbits,10000,np.concatenate((PositionSat4[-1],vsat4[-1])))
+Positionref  = np.concatenate((Positionref,Positionref1))
+PositionSat1 = np.concatenate((PositionSat1,PositionSat11))
+PositionSat2 = np.concatenate((PositionSat2,PositionSat21))
+PositionSat3 = np.concatenate((PositionSat3,PositionSat31))
+PositionSat4 = np.concatenate((PositionSat4,PositionSat41))
 
+tref  = np.concatenate((tref,tref1+tref[-1]+0.00000001))
+tsat1 = np.concatenate((tsat1,tsat11+tsat1[-1]+0.00000001))
+tsat2 = np.concatenate((tsat2,tsat21+tsat2[-1]+0.00000001))
+tsat3 = np.concatenate((tsat3,tsat31+tsat3[-1]+0.00000001))
+tsat4 = np.concatenate((tsat4,tsat41+tsat4[-1]+0.00000001))
+
+newP3 = np.zeros_like(PositionSat3)
+newP4 = np.zeros_like(PositionSat3)
+
+for i in range(len(tref)):
+    if tref[i] == tsat3[i]:
+        newP3[i] = PositionSat3[i]
+        print("equal")
+    else:
+        for j in range(len(tsat3)):
+            if tref[i] > tsat3[j] and tref[i] < tsat3[j+1]:
+                newP3[i] = (PositionSat3[j]+PositionSat3[j+1])/2
+                break
+
+for i in range(len(tref)):
+    if tref[i] == tsat4[i]:
+        newP4[i] = PositionSat4[i]
+        print("equal")
+    else:
+        for j in range(len(tsat4)):
+            if tref[i] > tsat3[j] and tref[i] < tsat4[j+1]:
+                newP4[i] = (PositionSat4[j]+PositionSat4[j+1])/2
+                break
+
+PositionSat3 = newP3
+PositionSat4 = newP4
 
 Rfref = Positionref[-1]
 Rf1 = PositionSat1[-1]
@@ -69,24 +106,20 @@ Rf2 = PositionSat2[-1]
 Rf3 = PositionSat3[-1]
 Rf4 = PositionSat4[-1]
 
+
+
 th = lambda R,e,a: np.acos((a*(1-e**2)-R)/(R*e))
 
 thref = np.rad2deg(th(np.linalg.norm(Rfref),eref,aref))
-
 th1 = np.rad2deg(th(np.linalg.norm(Rf1),e1,a1))
-
 th2 = np.rad2deg(th(np.linalg.norm(Rf2),e1,a1))
-
 th3 = np.rad2deg(th(np.linalg.norm(Rf3),e2,a2))
-
 th4 = np.rad2deg(th(np.linalg.norm(Rf4),e2,a2))
 
 print(thref,th1,th2,th3,th4)
 
 
 #Graph
-plotter = pv.Plotter()
-
 plotter = pv.Plotter()
     
 #Earth
@@ -116,21 +149,42 @@ orbit = pv.lines_from_points(PositionSat3)
 plotter.add_mesh(orbit, color="yellow", line_width=1)
 
 #Sats
-sphereref = pv.Sphere(radius=100,center=Rfref)
-plotter.add_mesh(sphereref,color="red")
+sphereref = pv.Sphere(radius=100,center=Positionref[0])
+SatRef = plotter.add_mesh(sphereref,color="red",name="SatRef")
 
-sphereSat1 = pv.Sphere(radius=100,center=Rf1)
-plotter.add_mesh(sphereSat1,color="green")
+sphereSat1 = pv.Sphere(radius=100,center=PositionSat1[0])
+Sat1 = plotter.add_mesh(sphereSat1,color="green",name="Sat1")
 
-sphereSat2 = pv.Sphere(radius=100,center=Rf2)
-plotter.add_mesh(sphereSat2,color="green")
+sphereSat2 = pv.Sphere(radius=100,center=PositionSat2[0])
+Sat2 = plotter.add_mesh(sphereSat2,color="green",name="Sat2")
 
-sphereSat3 = pv.Sphere(radius=100,center=Rf3)
-plotter.add_mesh(sphereSat3,color="yellow")
+sphereSat3 = pv.Sphere(radius=100,center=PositionSat3[0])
+Sat3 = plotter.add_mesh(sphereSat3,color="yellow",name="Sat3")
 
-sphereSat4 = pv.Sphere(radius=100,center=Rf4)
-plotter.add_mesh(sphereSat4,color="yellow")
+sphereSat4 = pv.Sphere(radius=100,center=PositionSat4[0])
+Sat4 = plotter.add_mesh(sphereSat4,color="yellow",name="Sat4")
 
-#plotter.camera_position = "xy"
+plotter.camera_position = [(-335.2078914223734, -26617.65720402787, 15780.412349809743),(1.3878246591048082e-05, 0.0, -64.95921660585418),(-0.995974737497762, -0.036256256172517445, -0.08197442378337853)]
 
-plotter.show(window_size=[1920,1080],interactive_update=False,title="Maneuver visualizer")
+#plotter.open_movie("phasing.mp4",framerate=60,quality=10)
+plotter.show(window_size=[1920,1080],interactive_update=True,title="Maneuver visualizer")
+
+for i in range(1,20000):
+    sphereref = pv.Sphere(radius=100,center=Positionref[i])
+    SatRef = plotter.add_mesh(sphereref,color="red",name="SatRef")
+
+    sphereSat1 = pv.Sphere(radius=100,center=PositionSat1[i])
+    Sat1 = plotter.add_mesh(sphereSat1,color="green",name="Sat1")
+
+    sphereSat2 = pv.Sphere(radius=100,center=PositionSat2[i])
+    Sat2 = plotter.add_mesh(sphereSat2,color="green",name="Sat2")
+
+    sphereSat3 = pv.Sphere(radius=100,center=PositionSat3[i])
+    Sat3 = plotter.add_mesh(sphereSat3,color="yellow",name="Sat3")
+
+    sphereSat4 = pv.Sphere(radius=100,center=PositionSat4[i])
+    Sat4 = plotter.add_mesh(sphereSat4,color="yellow",name="Sat4")
+
+    #plotter.write_frame()
+    plotter.update()
+    
